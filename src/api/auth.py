@@ -6,10 +6,12 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 
-# Load environment variables from .env file
-env_path = Path(__file__).parent.parent.parent / '.env'
-if env_path.exists():
-    load_dotenv(env_path)
+# Load .env from common locations (later files override earlier keys).
+# config/.env matches config/.env.example; repo-root .env is also supported.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+for _env_file in (_PROJECT_ROOT / "config" / ".env", _PROJECT_ROOT / ".env"):
+    if _env_file.is_file():
+        load_dotenv(_env_file, override=True)
 
 
 class AuthManager:

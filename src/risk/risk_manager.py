@@ -1,6 +1,7 @@
 """Risk management engine"""
 
-from typing import Dict, Optional, Tuple
+from collections import defaultdict
+from typing import Dict, List, Optional, Tuple
 from decimal import Decimal
 from ..utils.logger import setup_logger
 from ..risk.position_tracker import PositionTracker, Position
@@ -93,6 +94,28 @@ class RiskManager:
             return False, f"Drawdown {drawdown_pct:.2f}% exceeds limit {self.max_drawdown_pct:.2f}%"
         
         return True, None
+    
+    def can_open_position(
+        self, strategy: str, market_id: str, size: float, price: float = 0.5
+    ) -> bool:
+        """Whether a new buy in this market is allowed under current risk limits."""
+        allowed, _ = self.check_trade_allowed(strategy, market_id, size, price, side="buy")
+        return allowed
+    
+    def get_positions_by_market(self, strategy: str) -> Dict[str, List[Position]]:
+        """
+        Open positions for this strategy, grouped by market_id.
+
+        Args:
+            strategy: Strategy name (same as BaseStrategy.name).
+
+        Returns:
+            market_id -> list of open Position rows for that strategy.
+        """
+        grouped: Dict[str, List[Position]] = defaultdict(list)
+        for p in self.position_tracker.get_positions_by_strategy(strategy):
+            grouped[p.market_id].append(p)
+        return dict(grouped)
     
     def add_position(self, position: Position) -> None:
         """

@@ -2,7 +2,6 @@
 
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +10,17 @@ from typing import Optional
 TRADE_LOG_FILE: Optional[str] = None
 ERROR_LOG_FILE: Optional[str] = None
 MAIN_LOG_FILE: Optional[str] = None
+
+
+def _ensure_utf8_stdio() -> None:
+    """Avoid UnicodeEncodeError on Windows (cp1252) when logging emoji/symbols."""
+    for stream in (sys.stdout, sys.stderr):
+        if stream is None or not hasattr(stream, "reconfigure"):
+            continue
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (OSError, ValueError, AttributeError):
+            pass
 
 
 def setup_logger(
@@ -46,16 +56,17 @@ def setup_logger(
     
     # Console handler (if enabled)
     if console:
+        _ensure_utf8_stdio()
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(getattr(logging, log_level.upper()))
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
     
     # File handler if specified
     if log_file:
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -84,6 +95,8 @@ def setup_multi_logger(
     ERROR_LOG_FILE = error_log_file
     MAIN_LOG_FILE = main_log_file
     
+    _ensure_utf8_stdio()
+    
     # Create log directories
     for log_file in [main_log_file, trade_log_file, error_log_file]:
         Path(log_file).parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +113,7 @@ def setup_multi_logger(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
-    main_file_handler = logging.FileHandler(main_log_file)
+    main_file_handler = logging.FileHandler(main_log_file, encoding="utf-8")
     main_file_handler.setLevel(logging.DEBUG)
     main_file_handler.setFormatter(main_formatter)
     main_logger.addHandler(main_file_handler)
@@ -119,7 +132,7 @@ def setup_multi_logger(
     trade_logger.addHandler(trade_console_handler)
     
     # Trade log file handler
-    trade_file_handler = logging.FileHandler(trade_log_file)
+    trade_file_handler = logging.FileHandler(trade_log_file, encoding="utf-8")
     trade_file_handler.setLevel(logging.INFO)
     trade_file_formatter = logging.Formatter(
         '%(asctime)s - %(message)s',
@@ -135,7 +148,7 @@ def setup_multi_logger(
     error_logger.propagate = False  # Don't propagate to parent
     
     # Error log file handler
-    error_file_handler = logging.FileHandler(error_log_file)
+    error_file_handler = logging.FileHandler(error_log_file, encoding="utf-8")
     error_file_handler.setLevel(logging.WARNING)
     error_formatter = logging.Formatter(
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -145,7 +158,7 @@ def setup_multi_logger(
     error_logger.addHandler(error_file_handler)
     
     # Also add error handler to main logger to catch all errors
-    error_handler = logging.FileHandler(error_log_file)
+    error_handler = logging.FileHandler(error_log_file, encoding="utf-8")
     error_handler.setLevel(logging.WARNING)
     error_handler.setFormatter(error_formatter)
     main_logger.addHandler(error_handler)
